@@ -14,6 +14,7 @@ import pandas as pd
 from datetime import datetime
 import os, shutil, itertools, copy  # handy system and path functions
 import pyglet
+import glob
 
 # Initiating the keyboard
 from psychopy.iohub import launchHubServer
@@ -100,25 +101,15 @@ expInfo['time'] = datetime.now().strftime('%Y-%m-%d_%H%M')
 if expInfo['exp']=='' and expInfo['phase']=='': # phase0: domtest
     domTest = True
     expNum = 'dom'
-    expPhase = '0'
+    expPhase = 0
     expInfo['dom'] = -1
 else: # phases 1 or 2:
-    expPhase = expInfo['phase']
+    expPhase = int(expInfo['phase'])
     domTest = False
     expNum = expInfo['exp']
-    ###### REWRITE 
-    # Take last dom test for subj for data on thresholds:
-    
-    #expInfo['dom'] = 
-    domEyeR = int(float(expInfo['dom']))
-    #domEyeR
-    targEyeR = 2-(2**domEyeR)
-    #if expPhase == '1': # contrast threshold measurement
+    # the dominant eye is figured out later (as we need some functions later in code)
 
-# one has to specify both experiment & dom for an experiment, and neither for domTest; quit otherwise:
-if not (expInfo['exp'] == '' or expInfo['exp'] == ''): 
-    print 'ERROR: either experimental condition or eye dominance is not specified!'
-    core.quit()
+# ====================================================================================
 
 # Setup the Window
 win = visual.Window(size=dr, fullscr=False, screen=1, allowGUI=False, 
@@ -138,10 +129,10 @@ if precompileMode:
 dataDir = '..' + os.sep + 'data'
 if expNum == 'dom':
     fileName = '%s_%s_subj%s_phase%s_sess%s_%s' %(projName, expNum, expInfo['subj'], 
-        expPhase, expInfo['sess'], expInfo['time'])
+        expInfo['phase'], expInfo['sess'], expInfo['time'])
 else:
     fileName = '%s_exp%s_subj%s_phase%s_sess%s_%s' %(projName, expNum, expInfo['subj'], 
-        expPhase, expInfo['sess'], expInfo['time'])
+        expInfo['phase'], expInfo['sess'], expInfo['time'])
 filePath = dataDir + os.sep + fileName
 print filePath
 
@@ -176,9 +167,11 @@ winL = visual.Polygon(win, edges=36, size=[winSz, winSz], pos=posCentL,
                       lineWidth=winThickness, lineColor='white')
 winR = visual.Polygon(win, edges=36, size=[winSz, winSz], pos=posCentR,
                       lineWidth=winThickness, lineColor='white')
-# target gabor
+# target gabor (serves as prime in phase 2)
 targGab = visual.GratingStim(win, tex='sin', mask='circle', size=[winSz, winSz],
                       pos=posCentL) # this position will change dep. on eyeDom
+# target blob
+targBlob = visual.Polygon(win, radius=winSz, edges=72, pos=posCentL)
 # fixation:
 fixL = visual.ShapeStim(win, pos=posCentL, vertices=((0,-fixSz), (0,fixSz), (0,0), 
                                                      (-fixSz,0), (fixSz,0)),
@@ -273,10 +266,6 @@ threshFileName = filePath + os.sep + fileName + '_thresh.csv'
 # ====================================================================================
 # Various functions for use in trials:
 
-def dfThreshDom(dfThresh): # returns threshold averages from dominance test:
-    dfThresh['eye'] = [x[-1] for x in dfThresh.index.values.tolist()]
-    return dfThresh.groupby('eye').mean().mean(axis=1)
-
 def writeStair(thisStair, filePath):
     stairFileName = filePath + os.sep + thisStair.name
     thisStair.saveAsPickle(stairFileName)
@@ -336,6 +325,47 @@ R = np.sqrt((x+.5)**2 + (y+.5)**2) # adding .5 ensures symmetry
 
 def periMask(periGap, periFade, R=R):
     return sigmoid(R * (-10./(periFade)) + 5 + periGap*(10./periFade))*2 - 1
+
+# ====================================================================================
+
+## Figure out the dominance for phases 1-2:
+
+def dfThreshDomRaw(dfThresh): # returns threshold averages from dominance test:
+    dfThresh['eye'] = [x[-1] for x in dfThresh.index.values.tolist()]
+    return dfThresh.groupby('eye')[-6:].mean().mean(axis=1)
+
+def dfThreshDom6(dfThresh): # returns threshold averages from dominance test:
+    dfThresh['eye'] = [x[-1] for x in dfThresh['stairLabel'].tolist()]
+    groupByEye = dfThresh.groupby('eye')['meanRev6'].mean()
+    return groupByEye
+
+def dfThreshPhase1(dfThresh): # returns threshold averages from dominance test:
+    dfThresh['loc'] = [x[-12] for x in dfThresh['stairLabel'].tolist()]
+    groupByLoc = dfThresh.groupby('loc')['meanRev6'].mean()
+    return groupByLoc
+
+# For both 1st and 2nd phase, decide on the target eye:
+if expPhase > 0:
+    # Take last dom test for subj for data on thresholds:
+    domDir = glob.glob(dataDir + os.sep + '*dom_subj' + expInfo['subj'] + '*')[-1]
+    domCsv = glob.glob(domDir + os.sep + '*dom*[0-9].csv')[0]
+    dfDomThresh = dfThreshDom6(pd.read_csv(domCsv, index_col=False))
+    print dfDomThresh
+    if dfDomThresh[0] < dfDomThresh[1]: expInfo['dom'] = 0 # left eye dom
+    else: expInfo['dom'] = 1 # right eye dom; default if equal thresholds
+    targEyeR = 2-(2**int(float(expInfo['dom'])))
+    print 'targEye = ' + str(targEyeR)
+
+if expPhase == 2:
+    # Take threshold measurements from phase 1
+    phase1dir = glob.glob(dataDir + os.sep + '*exp' + expNum + \
+                          '_subj' + expInfo['subj'] + '_phase1*')[-1]
+    phase1csv = glob.glob(phase1dir + os.sep + '*phase1*[0-9].csv')[0]
+    # Assuming that the thresholds for dimmer masks are lower than for brighter masks 
+    # (etc for exp2-3), take the averages for each location for mcContr==0.5. The result
+    # is 2 averaged thresholds, one for each location.
+    dfPhase1thresh = dfThreshPhase1(pd.read_csv(phase1csv, index_col=False))
+    print dfPhase1thresh
 
 # ====================================================================================
 
@@ -731,7 +761,7 @@ print dfThresh
 dfThresh.to_csv(threshFileName, index=stairList, header=False)
 
 if expNum == 'dom': # at the end of dom test, display averaged thresh's for each eye:
-    print dfThreshDom(dfThresh)
+    print dfThreshDomRaw(dfThresh)
     
 print "finished the experiment"
 
