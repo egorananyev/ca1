@@ -106,10 +106,14 @@ else: # phases 1 or 2:
     expPhase = expInfo['phase']
     domTest = False
     expNum = expInfo['exp']
+    ###### REWRITE 
+    # Take last dom test for subj for data on thresholds:
+    
+    #expInfo['dom'] = 
     domEyeR = int(float(expInfo['dom']))
+    #domEyeR
     targEyeR = 2-(2**domEyeR)
     #if expPhase == '1': # contrast threshold measurement
-        
 
 # one has to specify both experiment & dom for an experiment, and neither for domTest; quit otherwise:
 if not (expInfo['exp'] == '' or expInfo['exp'] == ''): 
@@ -131,7 +135,7 @@ else:
 # Data file name stem = absolute path + name; later add .psyexp, .csv, .log, etc
 if precompileMode:
     precompiledDir = '../../../mc/precompiledMCs'
-dataDir = '..' + os.sep + 'data_bv3'
+dataDir = '..' + os.sep + 'data'
 if expNum == 'dom':
     fileName = '%s_%s_subj%s_phase%s_sess%s_%s' %(projName, expNum, expInfo['subj'], 
         expPhase, expInfo['sess'], expInfo['time'])
@@ -274,7 +278,7 @@ def dfThreshDom(dfThresh): # returns threshold averages from dominance test:
     return dfThresh.groupby('eye').mean().mean(axis=1)
 
 def writeStair(thisStair, filePath):
-    stairFileName = filePath + os.sep + stairLabel
+    stairFileName = filePath + os.sep + thisStair.name
     thisStair.saveAsPickle(stairFileName)
     thisStair.saveAsText(stairFileName)
 
