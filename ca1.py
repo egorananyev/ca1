@@ -1,7 +1,8 @@
 ####!/usr/bin/arch -i386 /usr/bin/python # -*- coding: utf-8 -*-
 """
-Motion Clouds: SF Bandwidth (B_sf)
-2016-07-29
+Consciousness, attention, and depth of suppression.
+2018-02-05
+Egor Ananyev
 """
 
 from __future__ import division  # so that 1/3=0.333 instead of 1/3=0
@@ -13,8 +14,6 @@ import pandas as pd
 from datetime import datetime
 import os, shutil, itertools, copy  # handy system and path functions
 import pyglet
-#import MotionClouds as mc
-
 
 # Initiating the keyboard
 from psychopy.iohub import launchHubServer
@@ -27,7 +26,7 @@ _thisDir = os.path.dirname(os.path.abspath(__file__))
 # ====================================================================================
 ## Initial variables.
 et = 0
-expName = 'mc2_tgT-mcBv3'
+expName = 'ca1'
 # Window circles (specified in degrees of visual angles [dva]):
 #winSz = 7.2 # 5.03; calculated as 5/x=sqrt(2)/2 => x=10/sqrt(2)
 winOffX = 4.25 # 6 # 5.62
@@ -84,72 +83,6 @@ posCentR = [winOffX, winOffY]
 #print winSz 
 #print posCentL 
 #print posCentR 
-
-# ====================================================================================
-# Eye tracking initialization
-
-if et:
-    import pylink as pl
-    #cp = (0.4,0.4) # calibration proportion
-    cd = 32
-
-    eyeLink = ("100.1.1.1")
-
-    displayInfo = pl.getDisplayInformation()
-    print displayInfo.width, displayInfo.height
-    screenCenter = (int(dr[0]/2), int(dr[1]/2))
-    calScreenCenter = (int(screenCenter[0]+winOffX),
-                    int(screenCenter[1]-winOffY))
-    calTargDist = int(winSz/3)
-    calTarg1 = calScreenCenter
-    calTarg2 = (int(calScreenCenter[0]-calTargDist), int(calScreenCenter[1]))
-    calTarg3 = (int(calScreenCenter[0]+calTargDist), int(calScreenCenter[1]))
-
-    def elEndRec(el):
-        # Ends the recording; adds 100ms to catch final events
-        pl.endRealTimeMode()
-        pl.pumpDelay(100)
-        el.stopRecording()
-
-    def eyeTrkInit (dr):
-        el = pl.EyeLink()
-        # sending the screen dimensions to the eye tracker:
-        el.sendCommand('screen_pixel_coords = 0 0 %d %d' %dr)
-        el.sendMessage('DISPLAY_COORDS 0 0 %d %d' %dr)
-        el.sendCommand('generate_default_targets = NO')
-        el.sendCommand('calibration_targets = %d,%d %d,%d %d,%d' % (
-                       calTarg1[0], calTarg1[1],
-                       calTarg2[0], calTarg2[1],
-                       calTarg3[0], calTarg3[1]) )
-        el.sendCommand('validation_targets = %d,%d %d,%d %d,%d' % (
-                       calTarg1[0], calTarg1[1],
-                       calTarg2[0], calTarg2[1],
-                       calTarg3[0], calTarg3[1]) )
-        # parser configuration 1 corresponds to high sensitivity to saccades:
-        el.sendCommand('select_parser_configuration 1')
-        # turns off "scenelink camera stuff", i.e., doesn't record the ET video
-        el.sendCommand('scene_camera_gazemap = NO')
-        # converting pupil area to diameter
-        el.sendCommand('pupil_size_diameter = %s'%('YES'))
-        return(el)
-    el = eyeTrkInit(dr)
-    print 'Finished initializing the eye tracker.'
-
-    def eyeTrkCalib (el=el,dr=dr,cd=cd):
-        # "opens the graphics if the display mode is not set"
-        pl.openGraphics(dr,cd)
-        pl.setCalibrationColors((255,255,255),(0,177,177))
-        pl.setTargetSize(10, 5) 
-        pl.setCalibrationSounds("","","")
-        el.setCalibrationType('H3')
-        pl.setDriftCorrectSounds("","off","off")
-        el.disableAutoCalibration()
-        el.doTrackerSetup()
-        el.drawCalTarget(calTarg1)
-        el.drawCalTarget(calTarg2)
-        el.drawCalTarget(calTarg3)
-        pl.closeGraphics()
-        el.setOfflineMode()
 
 # ====================================================================================
 # Store info about the experiment session
@@ -211,36 +144,6 @@ else:
     frameDur = 1.0/60.0 # couldn't get a reliable measure so guess
 
 # ====================================================================================
-# Eye-tracking setup
-
-if et:
-    def etSetup(el=el,dr=dr,cd=cd):
-        blockLabel=visual.TextStim(win, text="Press spacebar", pos=posCentR,
-                                   color="white", bold=True, alignHoriz="center",
-                                   height=0.5)
-        notdone=True
-        while notdone:
-            blockLabel.draw()
-            win.flip()
-            keySpace = event.getKeys(keyList=['escape','space'])
-            if 'space' in keySpace:
-                print 'spacebar pressed'
-                eyeTrkCalib()
-                win.winHandle.activate()
-                print '///Finished calibration///'
-                notdone=False
-            elif 'escape' in keySpace:
-                print 'procedure terminated'
-                notdone=False
-    etSetup()
-
-    def drCor(el=el,dr=dr,cd=cd):
-        pl.openGraphics(dr,cd)
-        el.doDriftCorrect(calScreenCenter[0], calScreenCenter[1], 1, 0)
-        pl.closeGraphics()
-        print '///Finished drift correction///'
-
-# ====================================================================================
 
 # Data file name stem = absolute path + name; later add .psyexp, .csv, .log, etc
 if precompileMode:
@@ -250,15 +153,6 @@ fileName = '%s_%s_p%s_s%s_%s' %(expName, expPara, expInfo['participant'], expInf
     expInfo['time'])
 filePath = dataDir + os.sep + fileName
 print filePath
-
-if et:
-    edfFileName = 'data.edf'
-    el.openDataFile(edfFileName)
-    el.sendCommand("file_event_filter = LEFT,RIGHT,FIXATION,SACCADE,BLINK,\
-                    MESSAGE,BUTTON,INPUT")
-    el.sendCommand("file_sample_data  = LEFT,RIGHT,GAZE,AREA,GAZERES,STATUS,\
-                    HTARGET,INPUT")
-    print '///set up the EDF file for eye-tracking///'
 
 # Condition-related variables
 conditionsFilePath = 'cond-files'+os.sep+'cond-'+expName+'_'+expPara+'.csv'
@@ -657,16 +551,6 @@ while len(stairs)>0:
             if hasattr(thisComponent, 'status'):
                 thisComponent.status = NOT_STARTED
         
-        # ////////////////////////////////////////////////////////////////////////////////
-        if et:
-            el.sendMessage("TRIALID " + str(nTrialsDone ))
-            trialStartStr = datetime.now().strftime('%Y-%m-%d_%H%M%S')
-            el.sendMessage("TIMESTAMP " + trialStartStr)
-            el.setOfflineMode()
-            pl.msecDelay(50) 
-            error = el.startRecording(1,1,1,1)
-        # ////////////////////////////////////////////////////////////////////////////////
-        
         #-------Start Routine "trial"-------
         continueRoutine = True
         while continueRoutine:
@@ -762,12 +646,6 @@ while len(stairs)>0:
                 fdbTextL.draw()
                 fdbTextR.draw()
 
-            if t > trialT and not elStopped:
-                # stopping eye-tracking recording:
-                if et:
-                    elEndRec(el)
-                    elStopped = True
-
             # pause text and data exporting
             if targRespGiven and not keyPause and t>trialT:
                 pauseTextL.draw()
@@ -818,9 +696,6 @@ while len(stairs)>0:
             # check for quit (the Esc key)
             if endExpNow or event.getKeys(keyList=["escape"]):
                 print np.shape(behResp)
-                if et:
-                    elEndRec(el)
-                core.quit()
             
             # refresh the screen
             # don't flip if this routine is over or we'll get a blank screen
@@ -842,17 +717,6 @@ for thisStair in completedStairs:
     print 'meanRev6 = %.3f' %(np.average(thisStair.reversalIntensities[-6:]))
     #print thisStair.reversalIntensities
 
-if et:
-    # File transfer and cleanup!
-    pl.endRealTimeMode()
-    el.setOfflineMode()						  
-    pl.msecDelay(600) 
-
-    #Close the file and transfer it to Display PC
-    el.closeDataFile()
-    el.receiveDataFile(edfFileName, edfFileName)
-    os.rename(edfFileName, filePath + os.sep + edfFileName)
-    el.close()
 
 print "finished the experiment"
 
